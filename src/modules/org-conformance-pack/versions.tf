@@ -7,9 +7,9 @@ terraform {
       version = ">= 4.0"
     }
 
-    awsutils = {
-      source  = "cloudposse/awsutils"
-      version = ">= 0.16.0"
+    http = {
+      source  = "hashicorp/http"
+      version = ">= 2.1.0"
     }
   }
 }
