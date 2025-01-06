@@ -48,7 +48,7 @@ locals {
 
 module "conformance_pack" {
   source  = "cloudposse/config/aws//modules/conformance-pack"
-  version = "1.1.0"
+  version = "1.5.3"
 
   for_each = local.enabled ? local.account_packs : {}
 
@@ -81,7 +81,7 @@ module "org_conformance_pack" {
 
 module "aws_config" {
   source  = "cloudposse/config/aws"
-  version = "1.1.0"
+  version = "1.5.3"
 
   s3_bucket_id     = local.s3_bucket.config_bucket_id
   s3_bucket_arn    = local.s3_bucket.config_bucket_arn
