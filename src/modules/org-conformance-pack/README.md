@@ -13,7 +13,7 @@ The Conformance Pack cannot be deployed until AWS Config is deployed, which can 
 
 First, make sure your root `account` allows the service access principal `config-multiaccountsetup.amazonaws.com` to
 update child organizations. You can see the docs on the account module here:
-[aws_service_access_principals](https://docs.cloudposse.com/components/library/aws/account/#input_aws_service_access_principals)
+[aws_service_access_principals](https://docs.cloudposse.com/components/library/aws/account/#aws_service_access_principals)
 
 Then you have two options:
 
