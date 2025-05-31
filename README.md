@@ -216,7 +216,7 @@ atmos terraform plan aws-config-{each region} --stack {each region}-{each stage}
 | <a name="module_iam_roles"></a> [iam\_roles](#module\_iam\_roles) | ../account-map/modules/iam-roles | n/a |
 | <a name="module_org_conformance_pack"></a> [org\_conformance\_pack](#module\_org\_conformance\_pack) | ./modules/org-conformance-pack | n/a |
 | <a name="module_this"></a> [this](#module\_this) | cloudposse/label/null | 0.25.0 |
-| <a name="module_utils"></a> [utils](#module\_utils) | cloudposse/utils/aws | 1.3.0 |
+| <a name="module_utils"></a> [utils](#module\_utils) | cloudposse/utils/aws | 1.4.0 |
 
 ## Resources
 
