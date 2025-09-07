@@ -2,7 +2,7 @@ module "account_map" {
   source  = "cloudposse/stack-config/yaml//modules/remote-state"
   version = "1.8.0"
 
-  component   = "account-map"
+  component   = var.account_map_component_name
   tenant      = (var.account_map_tenant != "") ? var.account_map_tenant : module.this.tenant
   stage       = var.root_account_stage
   environment = var.global_environment
@@ -15,7 +15,7 @@ module "config_bucket" {
   source  = "cloudposse/stack-config/yaml//modules/remote-state"
   version = "1.8.0"
 
-  component   = "config-bucket"
+  component   = var.config_bucket_component_name
   tenant      = (var.config_bucket_tenant != "") ? var.config_bucket_tenant : module.this.tenant
   stage       = var.config_bucket_stage
   environment = var.config_bucket_env
@@ -30,7 +30,7 @@ module "global_collector_region" {
 
   count = !local.enabled || local.is_global_collector_region ? 0 : 1
 
-  component   = "aws-config-${lookup(module.utils.region_az_alt_code_maps["to_${var.az_abbreviation_type}"], var.global_resource_collector_region)}"
+  component   = "${var.config_component_name}-${lookup(module.utils.region_az_alt_code_maps["to_${var.az_abbreviation_type}"], var.global_resource_collector_region)}"
   stage       = module.this.stage
   environment = lookup(module.utils.region_az_alt_code_maps["to_${var.az_abbreviation_type}"], var.global_resource_collector_region)
   privileged  = false
@@ -42,7 +42,7 @@ module "aws_team_roles" {
   source  = "cloudposse/stack-config/yaml//modules/remote-state"
   version = "1.8.0"
 
-  component   = "aws-team-roles"
+  component   = var.team_roles_component_name
   environment = var.iam_roles_environment_name
 
   context = module.this.context
