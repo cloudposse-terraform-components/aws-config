@@ -171,3 +171,27 @@ variable "default_scope" {
     error_message = "The scope must be either `account` or `organization`."
   }
 }
+
+variable "account_map_component_name" {
+  type        = string
+  description = "The name of the account-map component"
+  default     = "account-map"
+}
+
+variable "config_component_name" {
+  type        = string
+  description = "The name of the aws config component (i.e., this component)"
+  default     = "aws-config"
+}
+
+variable "config_bucket_component_name" {
+  type        = string
+  description = "The name of the config-bucket component"
+  default     = "config-bucket"
+}
+
+variable "team_roles_component_name" {
+  type        = string
+  description = "The name of the team-roles component"
+  default     = "aws-team-roles"
+}
