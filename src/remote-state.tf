@@ -30,7 +30,7 @@ module "global_collector_region" {
 
   count = !local.enabled || local.is_global_collector_region ? 0 : 1
 
-  component   = "${var.config_component_name}-${lookup(module.utils.region_az_alt_code_maps["to_${var.az_abbreviation_type}"], var.global_resource_collector_region)}"
+  component   = format(var.global_collector_component_name_pattern, var.config_component_name, lookup(module.utils.region_az_alt_code_maps["to_${var.az_abbreviation_type}"], var.global_resource_collector_region))
   stage       = module.this.stage
   environment = lookup(module.utils.region_az_alt_code_maps["to_${var.az_abbreviation_type}"], var.global_resource_collector_region)
   privileged  = false

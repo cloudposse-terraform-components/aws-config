@@ -195,3 +195,19 @@ variable "team_roles_component_name" {
   description = "The name of the team-roles component"
   default     = "aws-team-roles"
 }
+
+variable "global_collector_component_name_pattern" {
+  type        = string
+  description = <<-EOT
+    A string formatting pattern used to construct or look up the name of the
+    global AWS Config collector region component.
+
+    This pattern should align with the regional naming convention of the
+    aws-config component. For example, if the pattern is "%s-%s" and you pass
+    ("aws-config", "use1"), the resulting component name will be "aws-config-use1".
+
+    Adjust this pattern if your environment uses a different naming convention
+    for regional AWS Config components.
+  EOT
+  default     = "%s-%s"
+}
