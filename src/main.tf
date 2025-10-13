@@ -83,12 +83,13 @@ module "aws_config" {
   source  = "cloudposse/config/aws"
   version = "1.5.3"
 
-  s3_bucket_id     = local.s3_bucket.config_bucket_id
-  s3_bucket_arn    = local.s3_bucket.config_bucket_arn
-  create_iam_role  = local.create_iam_role
-  iam_role_arn     = local.config_iam_role_arn
-  managed_rules    = var.managed_rules
-  create_sns_topic = true
+  s3_bucket_id                = local.s3_bucket.config_bucket_id
+  s3_bucket_arn               = local.s3_bucket.config_bucket_arn
+  create_iam_role             = local.create_iam_role
+  iam_role_arn                = local.config_iam_role_arn
+  managed_rules               = var.managed_rules
+  exclusion_by_resource_types = var.exclusion_by_resource_types
+  create_sns_topic            = true
 
   global_resource_collector_region   = var.global_resource_collector_region
   central_resource_collector_account = local.central_resource_collector_account

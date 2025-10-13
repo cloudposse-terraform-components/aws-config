@@ -118,6 +118,24 @@ variable "conformance_packs" {
   }
 }
 
+variable "exclusion_by_resource_types" {
+  type        = list(string)
+  description = <<-DOC
+    A list of resource types to exclude from recording.
+    Supported resource types are listed here https://docs.aws.amazon.com/config/latest/developerguide/resource-config-reference.html.
+    Implies recording strategy of `EXCLUSION_BY_RESOURCE_TYPES` and `all_supported` = `false`.
+    Conflicts with `resource_types` (no implemented yet).
+
+    Example:
+
+    exclusion_by_resource_types = [
+      "AWS::Config::ResourceCompliance",
+      "AWS::CloudWatch::Alarm"
+    ]
+  DOC
+  default     = null
+}
+
 variable "delegated_accounts" {
   description = "The account IDs of other accounts that will send their AWS Configuration or Security Hub data to this account"
   type        = set(string)
