@@ -133,7 +133,7 @@ variable "exclusion_by_resource_types" {
       "AWS::CloudWatch::Alarm"
     ]
   DOC
-  default     = null
+  default     = []
 }
 
 variable "delegated_accounts" {
