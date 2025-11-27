@@ -1,6 +1,6 @@
 variable "conformance_pack" {
   type        = string
-  description = "The URL to a Conformance Pack"
+  description = "The URL to a Conformance Pack (http:// or https://) or a local file path relative to the component root"
 }
 
 variable "parameter_overrides" {

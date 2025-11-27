@@ -211,3 +211,17 @@ variable "global_collector_component_name_pattern" {
   EOT
   default     = "%s-%s"
 }
+
+variable "sns_encryption_key_id" {
+  type        = string
+  description = <<-DOC
+    The ID of an AWS-managed customer master key (CMK) for Amazon SNS or a custom CMK.
+
+    Use "alias/aws/sns" for AWS managed key (recommended for compliance).
+    Use a custom KMS key ARN or alias for organization-specific encryption requirements.
+
+    IMPORTANT: This is required for CMMC compliance (cmmc-2-v2-sns-encrypted-kms rule).
+    The SNS topic created by AWS Config must be encrypted with KMS.
+  DOC
+  default     = "alias/aws/sns"
+}
