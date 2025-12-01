@@ -107,7 +107,7 @@ variable "conformance_packs" {
   type = list(object({
     name                = string
     conformance_pack    = string
-    parameter_overrides = map(string)
+    parameter_overrides = map(any)
     scope               = optional(string, null)
   }))
   default = []
@@ -122,12 +122,6 @@ variable "delegated_accounts" {
   description = "The account IDs of other accounts that will send their AWS Configuration or Security Hub data to this account"
   type        = set(string)
   default     = null
-}
-
-variable "iam_roles_environment_name" {
-  type        = string
-  description = "The name of the environment where the IAM roles are provisioned"
-  default     = "gbl"
 }
 
 variable "managed_rules" {
@@ -188,12 +182,6 @@ variable "config_bucket_component_name" {
   type        = string
   description = "The name of the config-bucket component"
   default     = "config-bucket"
-}
-
-variable "team_roles_component_name" {
-  type        = string
-  description = "The name of the team-roles component"
-  default     = "aws-team-roles"
 }
 
 variable "global_collector_component_name_pattern" {

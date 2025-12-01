@@ -4,7 +4,7 @@ locals {
 
   # For local paths, resolve relative to the component root directory
   # This module is at modules/org-conformance-pack, so ../../ goes to component root
-  template_body = local.is_remote_url ? data.http.conformance_pack[0].body : file("${path.module}/../../${var.conformance_pack}")
+  template_body = local.is_remote_url ? one(data.http.conformance_pack[*].body) : file("${path.module}/../../${var.conformance_pack}")
 }
 
 resource "aws_config_organization_conformance_pack" "default" {
