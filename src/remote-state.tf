@@ -37,13 +37,3 @@ module "global_collector_region" {
 
   context = module.this.context
 }
-
-module "aws_team_roles" {
-  source  = "cloudposse/stack-config/yaml//modules/remote-state"
-  version = "1.8.0"
-
-  component   = var.team_roles_component_name
-  environment = var.iam_roles_environment_name
-
-  context = module.this.context
-}

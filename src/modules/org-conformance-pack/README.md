@@ -21,6 +21,13 @@ Then you have two options:
   each `conformance_packs` item)
 - Set the `scope` of the `conformance_packs` item to be `organization`
 
+### Conformance Pack Sources
+
+The module supports both remote URLs and local file paths for conformance packs:
+
+- **Remote URL**: Use `http://` or `https://` URLs to download conformance packs from remote sources
+- **Local File**: Use relative paths (from the component root) to reference local conformance pack files
+
 An example YAML stack config for Atmos follows. Note, that both options are shown for demonstration purposes. In
 practice you should only have one `aws-config` per account:
 
@@ -43,8 +50,12 @@ components:
       vars:
         default_scope: organization
         conformance_packs:
+          # Remote conformance pack (downloaded from URL)
           - name: Operational-Best-Practices-for-CIS-AWS-v1.4-Level2
             conformance_pack: https://raw.githubusercontent.com/awslabs/aws-config-rules/master/aws-config-conformance-packs/Operational-Best-Practices-for-CIS-AWS-v1.4-Level2.yaml
+          # Local conformance pack (relative to component root)
+          - name: CMMC-Level-2
+            conformance_pack: conformance-packs/cmmc-l2-v2-AWS-Best-Practices.yaml
 ```
 
 
@@ -84,7 +95,7 @@ components:
 |------|-------------|------|---------|:--------:|
 | <a name="input_additional_tag_map"></a> [additional\_tag\_map](#input\_additional\_tag\_map) | Additional key-value pairs to add to each map in `tags_as_list_of_maps`. Not added to `tags` or `id`.<br/>This is for some rare cases where resources want additional configuration of tags<br/>and therefore take a list of maps with tag key, value, and additional configuration. | `map(string)` | `{}` | no |
 | <a name="input_attributes"></a> [attributes](#input\_attributes) | ID element. Additional attributes (e.g. `workers` or `cluster`) to add to `id`,<br/>in the order they appear in the list. New attributes are appended to the<br/>end of the list. The elements of the list are joined by the `delimiter`<br/>and treated as a single ID element. | `list(string)` | `[]` | no |
-| <a name="input_conformance_pack"></a> [conformance\_pack](#input\_conformance\_pack) | The URL to a Conformance Pack | `string` | n/a | yes |
+| <a name="input_conformance_pack"></a> [conformance\_pack](#input\_conformance\_pack) | The URL to a Conformance Pack (http:// or https://) or a local file path relative to the component root | `string` | n/a | yes |
 | <a name="input_context"></a> [context](#input\_context) | Single object for setting entire context at once.<br/>See description of individual variables for details.<br/>Leave string and numeric variables as `null` to use default value.<br/>Individual variable settings (non-null) override settings in context object,<br/>except for attributes, tags, and additional\_tag\_map, which are merged. | `any` | <pre>{<br/>  "additional_tag_map": {},<br/>  "attributes": [],<br/>  "delimiter": null,<br/>  "descriptor_formats": {},<br/>  "enabled": true,<br/>  "environment": null,<br/>  "id_length_limit": null,<br/>  "label_key_case": null,<br/>  "label_order": [],<br/>  "label_value_case": null,<br/>  "labels_as_tags": [<br/>    "unset"<br/>  ],<br/>  "name": null,<br/>  "namespace": null,<br/>  "regex_replace_chars": null,<br/>  "stage": null,<br/>  "tags": {},<br/>  "tenant": null<br/>}</pre> | no |
 | <a name="input_delimiter"></a> [delimiter](#input\_delimiter) | Delimiter to be used between ID elements.<br/>Defaults to `-` (hyphen). Set to `""` to use no delimiter at all. | `string` | `null` | no |
 | <a name="input_descriptor_formats"></a> [descriptor\_formats](#input\_descriptor\_formats) | Describe additional descriptors to be output in the `descriptors` output map.<br/>Map of maps. Keys are names of descriptors. Values are maps of the form<br/>`{<br/>  format = string<br/>  labels = list(string)<br/>}`<br/>(Type is `any` so the map values can later be enhanced to provide additional options.)<br/>`format` is a Terraform format string to be passed to the `format()` function.<br/>`labels` is a list of labels, in order, to pass to `format()` function.<br/>Label values will be normalized before being passed to `format()` so they will be<br/>identical to how they appear in `id`.<br/>Default is `{}` (`descriptors` output will be empty). | `any` | `{}` | no |
