@@ -7,165 +7,487 @@ tags:
 
 # Component: `config`
 
-This component is responsible for configuring AWS Config.
+This component provisions AWS Config across all accounts in an AWS Organization. AWS Config is a service that enables
+you to assess, audit, and evaluate the configurations of your AWS resources. It continuously monitors and records
+configuration changes to your AWS resources and provides a detailed view of the relationships between those resources.
 
-AWS Config service enables you to track changes to your AWS resources over time. It continuously monitors and records
-configuration changes to your AWS resources and provides you with a detailed view of the relationships between those
-resources. With AWS Config, you can assess, audit, and evaluate the configurations of your AWS resources for compliance,
-security, and governance purposes.
+## Component Features
 
-Some of the key features of AWS Config include:
+This component is responsible for:
 
-- Configuration history: AWS Config maintains a detailed history of changes to your AWS resources, allowing you to see
-  when changes were made, who made them, and what the changes were.
-- Configuration snapshots: AWS Config can take periodic snapshots of your AWS resources configurations, giving you a
-  point-in-time view of their configuration.
-- Compliance monitoring: AWS Config provides a range of pre-built rules and checks to monitor your resources for
-  compliance with best practices and industry standards.
-- Relationship mapping: AWS Config can map the relationships between your AWS resources, enabling you to see how changes
-  to one resource can impact others.
-- Notifications and alerts: AWS Config can send notifications and alerts when changes are made to your AWS resources
-  that could impact their compliance or security posture.
+- **Configuration Recording**: Deploys Configuration Recorders in each account and region to track resource configurations
+- **Centralized Aggregation**: Configures a designated account (typically `security`) as the central aggregation point for all AWS Config data
+- **Compliance Monitoring**: Deploys conformance packs to monitor resources for compliance with best practices and industry standards (e.g., CMMC, CIS, HIPAA)
+- **Configuration Storage**: Delivers configuration snapshots and history to a centralized S3 bucket (typically in the `audit` account)
+- **Organization-wide Conformance Packs**: Deploys organization conformance packs from the management account that automatically apply to all member accounts
+- **SNS Topic Encryption**: Creates encrypted SNS topics for AWS Config notifications (required for CMMC compliance)
+
+## New Features
+
+This version includes several enhancements:
+
+- **Local Conformance Pack Support**: Load conformance packs from local files in addition to remote URLs. This enables
+  custom packs, air-gapped deployments, and version-controlled compliance rules.
+- **Organization Conformance Packs**: Deploy conformance packs organization-wide from the management account using the
+  `scope: organization` setting.
+- **SNS Topic Encryption**: Built-in support for KMS encryption of AWS Config SNS topics (`sns_encryption_key_id`
+  variable) for CMMC compliance.
+- **Flexible Component Naming**: The `global_collector_component_name_pattern` variable allows customization of how
+  the component looks up the global collector region's remote state.
+- **GovCloud Support**: Full support for AWS GovCloud regions and partitions.
+
+## Key AWS Config Capabilities
+
+- **Configuration History**: Maintains a detailed history of changes to AWS resources, showing when changes were made, who made them, and what the changes were
+- **Configuration Snapshots**: Takes periodic snapshots of resource configurations for point-in-time views
+- **Compliance Monitoring**: Provides pre-built rules and checks for compliance with best practices and industry standards
+- **Relationship Mapping**: Maps relationships between AWS resources to understand change impacts
+- **Notifications and Alerts**: Sends notifications when configuration changes impact compliance or security posture
+
+## Architecture
+
+The component deploys a multi-account, multi-region architecture:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           AWS Organization                                   │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ Management Account (Organization Conformance Packs)                    │ │
+│  │  - Deploys organization-wide conformance packs                         │ │
+│  │  - Packs automatically apply to all member accounts                    │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ Security Account (Central Aggregator)                                  │ │
+│  │  - AWS Config Aggregator (collects from ALL accounts)                  │ │
+│  │  - Centralized compliance dashboard                                    │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+│                              ▲ ▲ ▲                                          │
+│                              │ │ │ Aggregate Authorizations                 │
+│                              │ │ │                                          │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │ Audit Account                                                          │ │
+│  │  - S3 Bucket (aws-config-bucket)                                       │ │
+│  │  - Stores ALL Config data from all accounts ◄───────────────┐          │ │
+│  └──────────────────────────────────────────────────────────────│──────────┘ │
+│                                                                  │           │
+│  ┌────────────────────────────────────────────────────────────┐ │           │
+│  │ Each Member Account                                        │ │           │
+│  │                                                            │ │           │
+│  │  Global Collector Region (e.g., us-east-1):               │ │           │
+│  │    ✓ Configuration Recorder                               │ │           │
+│  │    ✓ IAM Role (created once per account)                  │ │           │
+│  │    ✓ Tracks global resources (IAM, Route53, etc.)         │ │           │
+│  │    ✓ Aggregate Authorization → Security Account           │─┘           │
+│  │    ✓ Delivery Channel → S3 Bucket (audit) ────────────────────────────────┘
+│  │                                                            │              │
+│  │  Additional Regions (e.g., us-west-2):                    │              │
+│  │    ✓ Configuration Recorder                               │              │
+│  │    ✓ References IAM Role from global collector region     │              │
+│  │    ✓ Tracks regional resources (EC2, VPC, RDS, etc.)      │              │
+│  │    ✓ Delivery Channel → S3 Bucket (audit) ────────────────────────────────┘
+│  └────────────────────────────────────────────────────────────┘              │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Architecture Benefits
+
+- **Centralized Compliance**: Security team can view all resource configurations from one account
+- **Cost Efficiency**: Single S3 bucket for all AWS Config data (in audit account)
+- **Security Best Practices**: Aggregation in security account aligns with AWS Well-Architected Framework
+- **Scalability**: Easy to add new accounts and regions without changing the aggregation setup
+- **GovCloud Compatible**: Supports AWS GovCloud regions and partitions
 
 > [!WARNING]
 >
 > #### AWS Config Limitations
 >
-> You'll also want to be aware of some limitations with AWS Config:
+> Be aware of these AWS Config limitations:
 >
-> - The maximum number of AWS Config rules that can be evaluated in a single account is 1000.
->   - This can be mitigated by removing rules that are duplicated across packs. You'll have to manually search for these
->     duplicates.
->   - You can also look for rules that do not apply to any resources and remove those. You'll have to manually click
->     through rules in the AWS Config interface to see which rules are not being evaluated.
->   - If you end up still needing more than 1000 rules, one recommendation is to only run packs on a schedule with a
->     lambda that removes the pack after results are collected. If you had different schedule for each day of the week,
->     that would mean 7000 rules over the week. The aggregators would not be able to handle this, so you would need to
->     make sure to store them somewhere else (i.e. S3) so the findings are not lost.
->   - See the
->     [Audit Manager docs](https://aws.amazon.com/blogs/mt/integrate-across-the-three-lines-model-part-2-transform-aws-config-conformance-packs-into-aws-audit-manager-assessments/)
->     if you think you would like to convert conformance packs to custom Audit Manager assessments.
-> - The maximum number of AWS Config conformance packs that can be created in a single account is 50.
-
-Overall, AWS Config provides you with a powerful toolset to help you monitor and manage the configurations of your AWS
-resources, ensuring that they remain compliant, secure, and properly configured over time.
+> - **Maximum 1000 AWS Config rules** per account can be evaluated
+>   - Mitigate by removing duplicate rules across packs
+>   - Remove rules that don't apply to any resources
+>   - Consider scheduling pack deployment with Lambda for more than 1000 rules
+>   - See the [Audit Manager docs](https://aws.amazon.com/blogs/mt/integrate-across-the-three-lines-model-part-2-transform-aws-config-conformance-packs-into-aws-audit-manager-assessments/) for converting conformance packs to custom Audit Manager assessments
+> - **Maximum 50 conformance packs** per account
 ## Usage
 
 ## Prerequisites
 
-As part of
-[CIS AWS Foundations 1.20](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html#securityhub-cis-controls-1.20),
-this component assumes that a designated support IAM role with the following permissions has been deployed to every
-account in the organization:
+Before deploying this AWS Config component:
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "AllowSupport",
-      "Effect": "Allow",
-      "Action": ["support:*"],
-      "Resource": "*"
-    },
-    {
-      "Sid": "AllowTrustedAdvisor",
-      "Effect": "Allow",
-      "Action": "trustedadvisor:Describe*",
-      "Resource": "*"
-    }
-  ]
-}
-```
+1. **AWS Config Bucket**: The `aws-config-bucket` component must be provisioned first in the audit account:
+   ```bash
+   atmos terraform apply aws-config-bucket -s core-ue1-audit
+   ```
 
-Before deploying this AWS Config component `config-bucket` and `cloudtrail-bucket` should be deployed first.
+2. **Support IAM Role** (CIS AWS Foundations 1.20): A designated support IAM role should be deployed to every account:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Sid": "AllowSupport",
+         "Effect": "Allow",
+         "Action": ["support:*"],
+         "Resource": "*"
+       },
+       {
+         "Sid": "AllowTrustedAdvisor",
+         "Effect": "Allow",
+         "Action": "trustedadvisor:Describe*",
+         "Resource": "*"
+       }
+     ]
+   }
+   ```
+
+3. **Service Access Principals** (for organization-level conformance packs): Enable trusted access for AWS Config in
+   your organization:
+
+   **How to Verify:**
+   ```bash
+   aws organizations list-aws-service-access-for-organization | grep config
+   ```
+
+   **Enable if Disabled:**
+   ```bash
+   aws organizations enable-aws-service-access --service-principal config.amazonaws.com
+   aws organizations enable-aws-service-access --service-principal config-multiaccountsetup.amazonaws.com
+   ```
+
+   Or if using our `account` component, add these principals to `aws_service_access_principals`.
 
 ## Usage
 
-**Stack Level**: Regional or Global
+**Stack Level**: Regional
 
-This component has a `default_scope` variable for configuring if it will be an organization-wide or account-level
-component by default. Note that this can be overridden by the `scope` variable in the `conformance_packs` items.
+AWS Config is a regional service. The component must be deployed to each region where you want to track resources.
+
+### Scope Configuration
+
+The `default_scope` variable controls how conformance packs are deployed:
+
+| Scope | Description | Use Case |
+|-------|-------------|----------|
+| `account` | Conformance packs deployed per-account | Member accounts |
+| `organization` | Conformance packs deployed organization-wide | Management account only |
 
 > [!TIP]
 >
-> #### Using the account default_scope
+> #### Using Account Scope (Member Accounts)
 >
-> If default_scope == `account`, AWS Config is regional AWS service, so this component needs to be deployed to all
-> regions. If an individual `conformance_packs` item has `scope` set to `organization`, that particular pack will be
-> deployed to the organization level.
+> For member accounts, use `default_scope: account`. The component will:
+> - Create a Configuration Recorder in each region
+> - Create an IAM role only in the global collector region
+> - Authorize the central aggregator account to collect data
+> - Deploy account-level conformance packs
 
 > [!TIP]
 >
-> #### Using the organization default_scope
+> #### Using Organization Scope (Management Account)
 >
-> If default_scope == `organization`, AWS Config is global unless overridden in the `conformance_packs` items. You will
-> need to update your org to allow the `config-multiaccountsetup.amazonaws.com` service access principal for this to
-> work. If you are using our `account` component, just add that principal to the `aws_service_access_principals`
-> variable.
+> For the management account, use `default_scope: organization`. The component will:
+> - Deploy organization-wide conformance packs that apply to ALL member accounts
+> - Require the `config-multiaccountsetup.amazonaws.com` service access principal
 
-At the AWS Organizational level, the Components designate an account to be the `central collection account` and a single
-region to be the `central collection region` so that compliance information can be aggregated into a central location.
+### Key Configuration Variables
 
-Logs are typically written to the `audit` account and AWS Config deployed into to the `security` account.
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `global_resource_collector_region` | Region that tracks global resources (IAM, Route53) | `us-east-1` |
+| `central_resource_collector_account` | Account that aggregates all Config data | `security` |
+| `create_iam_role` | Set to `true` - component auto-detects global collector region | `true` |
+| `config_bucket_*` | References the S3 bucket in audit account | See example below |
+| `sns_encryption_key_id` | KMS key for SNS topic encryption (CMMC compliance) | `alias/aws/sns` |
 
-Here's an example snippet for how to use this component:
+### Catalog Configuration
+
+#### Default Configuration (`stacks/catalog/aws-config/defaults.yaml`)
 
 ```yaml
 components:
   terraform:
-    aws-config:
+    aws-config/defaults:
+      metadata:
+        type: abstract
+        component: "aws-config"
       vars:
         enabled: true
-        account_map_tenant: core
+        default_scope: account
+        create_iam_role: true
         az_abbreviation_type: fixed
-        # In each AWS account, an IAM role should be created in the main region.
-        # If the main region is set to us-east-1, the value of the var.create_iam_role variable should be true.
-        # For all other regions, the value of var.create_iam_role should be false.
-        create_iam_role: false
-        central_resource_collector_account: core-security
-        global_resource_collector_region: us-east-1
+        account_map_component_name: "account-map"
+        account_map_tenant: core
+        root_account_stage: root
+        global_environment: gbl
+        global_resource_collector_region: "us-east-1"
+        central_resource_collector_account: security
+        config_bucket_component_name: "aws-config-bucket"
+        config_bucket_tenant: core
         config_bucket_env: ue1
         config_bucket_stage: audit
-        config_bucket_tenant: core
+        sns_encryption_key_id: "alias/aws/sns"
+        conformance_packs: []
+```
+
+#### Member Account Configuration (`stacks/catalog/aws-config/member-account.yaml`)
+
+```yaml
+import:
+  - catalog/aws-config/defaults
+
+components:
+  terraform:
+    aws-config:
+      metadata:
+        component: "aws-config"
+        inherits:
+          - "aws-config/defaults"
+```
+
+#### Organization Account Configuration (`stacks/catalog/aws-config/organization.yaml`)
+
+```yaml
+import:
+  - catalog/aws-config/defaults
+
+components:
+  terraform:
+    aws-config:
+      metadata:
+        component: "aws-config"
+        inherits:
+          - "aws-config/defaults"
+      vars:
+        default_scope: organization
         conformance_packs:
-          - name: Operational-Best-Practices-for-CIS-AWS-v1.4-Level2
-            conformance_pack: https://raw.githubusercontent.com/awslabs/aws-config-rules/master/aws-config-conformance-packs/Operational-Best-Practices-for-CIS-AWS-v1.4-Level2.yaml
-            parameter_overrides:
-              AccessKeysRotatedParamMaxAccessKeyAge: '45'
-          - name: Operational-Best-Practices-for-HIPAA-Security.yaml
-            conformance_pack: https://raw.githubusercontent.com/awslabs/aws-config-rules/master/aws-config-conformance-packs/Operational-Best-Practices-for-HIPAA-Security.yaml
-            parameter_overrides:
-          ...
-          (etc)
-        managed_rules:
-          access-keys-rotated:
-            identifier: ACCESS_KEYS_ROTATED
-            description: "Checks whether the active access keys are rotated within the number of days specified in maxAccessKeyAge. The rule is NON_COMPLIANT if the access keys have not been rotated for more than maxAccessKeyAge number of days."
-            input_parameters:
-              maxAccessKeyAge: "30"
-            enabled: true
-            tags: { }
+          - name: "Operational-Best-Practices-for-CIS-AWS-v1.4-Level2"
+            conformance_pack: "https://raw.githubusercontent.com/awslabs/aws-config-rules/master/aws-config-conformance-packs/Operational-Best-Practices-for-CIS-AWS-v1.4-Level2.yaml"
+            parameter_overrides: {}
+```
+
+### Conformance Packs
+
+Conformance packs define a collection of AWS Config rules for compliance monitoring. This component supports loading
+conformance packs from **both remote URLs and local files**.
+
+#### Local File Support (New Feature)
+
+The component now supports loading conformance packs from the local filesystem in addition to remote URLs. This enables:
+
+- **Custom conformance packs**: Create organization-specific compliance rules
+- **Modified AWS packs**: Customize AWS-provided packs for your requirements
+- **Air-gapped environments**: Deploy in environments without internet access
+- **Version control**: Track conformance pack changes alongside infrastructure code
+
+The component automatically detects whether the `conformance_pack` value is a URL (starts with `http://` or `https://`)
+or a local file path. Local paths are resolved relative to the component's root directory.
+
+#### Conformance Pack Examples
+
+```yaml
+conformance_packs:
+  # Remote URL (AWS Labs managed packs)
+  - name: "CIS-AWS-v1.4-Level2"
+    conformance_pack: "https://raw.githubusercontent.com/awslabs/aws-config-rules/master/aws-config-conformance-packs/Operational-Best-Practices-for-CIS-AWS-v1.4-Level2.yaml"
+    parameter_overrides:
+      AccessKeysRotatedParamMaxAccessKeyAge: "45"
+
+  # Local file (relative to component directory)
+  - name: "Custom-CMMC-Pack"
+    conformance_pack: "conformance-packs/custom-cmmc-pack.yaml"
+    parameter_overrides: {}
+
+  # Another local file example
+  - name: "CMMC-Level2-Best-Practices"
+    conformance_pack: "conformance-packs/cmmc-l2-v2-AWS-Best-Practices.yaml"
+    parameter_overrides:
+      IamPasswordPolicyParamMaxPasswordAge: "60"
+
+  # Override scope for specific pack
+  - name: "Org-Wide-Security-Pack"
+    conformance_pack: "https://example.com/pack.yaml"
+    scope: "organization"  # Override default_scope
+    parameter_overrides: {}
+```
+
+#### Creating Custom Conformance Packs
+
+To create a custom conformance pack:
+
+1. Create a `conformance-packs/` directory in your component:
+   ```
+   components/terraform/aws-config/
+   ├── conformance-packs/
+   │   ├── custom-security-rules.yaml
+   │   └── cmmc-l2-v2-customized.yaml
+   ├── main.tf
+   ├── variables.tf
+   └── ...
+   ```
+
+2. Define rules in CloudFormation format:
+   ```yaml
+   # conformance-packs/custom-security-rules.yaml
+   Parameters:
+     MaxAccessKeyAge:
+       Default: '90'
+       Type: String
+   Resources:
+     AccessKeysRotated:
+       Type: AWS::Config::ConfigRule
+       Properties:
+         ConfigRuleName: custom-access-keys-rotated
+         InputParameters:
+           maxAccessKeyAge:
+             Ref: MaxAccessKeyAge
+         Source:
+           Owner: AWS
+           SourceIdentifier: ACCESS_KEYS_ROTATED
+   ```
+
+3. Reference the local file in your configuration:
+   ```yaml
+   conformance_packs:
+     - name: "Custom-Security-Rules"
+       conformance_pack: "conformance-packs/custom-security-rules.yaml"
+       parameter_overrides:
+         MaxAccessKeyAge: "45"
+   ```
+
+### SNS Topic Encryption
+
+AWS Config creates an SNS topic for notifications. For CMMC compliance, this topic must be encrypted:
+
+```yaml
+# Option 1: AWS Managed Key (Recommended)
+sns_encryption_key_id: "alias/aws/sns"
+
+# Option 2: Customer Managed KMS Key
+sns_encryption_key_id: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012"
 ```
 
 ## Deployment
 
-Apply to your central region security account
+### Provisioning Order
 
-```sh
-atmos terraform plan aws-config-{central-region} --stack core-{central-region}-security -var=create_iam_role=true
+> [!IMPORTANT]
+>
+> #### Critical: Deploy Member Accounts BEFORE Organization Account
+>
+> Organization conformance packs require all member accounts to have configuration recorders already set up.
+> Always deploy member accounts first, then the organization/management account last.
+
+#### Step 1: Deploy to Member Accounts (Global Collector Region First)
+
+All member accounts can be deployed in parallel:
+
+```bash
+# Core tenant accounts
+atmos terraform apply aws-config -s core-ue1-audit
+atmos terraform apply aws-config -s core-ue1-security
+atmos terraform apply aws-config -s core-ue1-network
+atmos terraform apply aws-config -s core-ue1-identity
+atmos terraform apply aws-config -s core-ue1-dns
+atmos terraform apply aws-config -s core-ue1-automation
+
+# Platform tenant accounts (if applicable)
+atmos terraform apply aws-config -s plat-ue1-dev
+atmos terraform apply aws-config -s plat-ue1-staging
+atmos terraform apply aws-config -s plat-ue1-prod
 ```
 
-For example when central region is `us-east-1`:
+#### Step 2: Deploy to Organization/Management Account (LAST)
 
-```sh
-atmos terraform plan aws-config-ue1 --stack core-ue1-security -var=create_iam_role=true
+```bash
+atmos terraform apply aws-config -s core-ue1-root
 ```
 
-Apply aws-config to all stacks in all stages.
+### Multi-Region Deployment
 
-```sh
-atmos terraform plan aws-config-{each region} --stack {each region}-{each stage}
+AWS Config is regional. For multi-region coverage, deploy to each region:
+
+#### How Multi-Region Works
+
+- **Global Collector Region** (e.g., `us-east-1`): Creates the IAM role, tracks global resources
+- **Additional Regions** (e.g., `us-west-2`): References IAM role via remote state, tracks regional resources only
+
+#### Prerequisites for Additional Regions
+
+Add the aws-config import to regional baseline files:
+
+```yaml
+# stacks/orgs/acme/core/security/us-west-2/baseline.yaml
+import:
+  - orgs/acme/core/security/_defaults
+  - mixins/region/us-west-2
+  - catalog/aws-config/member-account  # Add this
+```
+
+#### Deploy Additional Regions
+
+Follow the same order: member accounts first, then organization account.
+
+```bash
+# Step 1: Member accounts in us-west-2
+atmos terraform apply aws-config -s core-uw2-audit
+atmos terraform apply aws-config -s core-uw2-security
+# ... all other member accounts
+
+# Step 2: Organization account in us-west-2 (LAST)
+atmos terraform apply aws-config -s core-uw2-root
+```
+
+## Known Issues and False Positives
+
+### IAM Inline Policy Check - Service-Linked Roles
+
+The `IAM_NO_INLINE_POLICY_CHECK` rule flags AWS Service-Linked Roles (SLRs) as NON_COMPLIANT. This is a **known false
+positive**.
+
+**Why This Happens:**
+- AWS Service-Linked Roles are automatically created and managed by AWS services
+- These roles **must** have inline policies by AWS design
+- The rule cannot distinguish between user-created roles and AWS-managed SLRs
+
+**Common SLRs That Trigger This Finding:**
+
+| Service-Linked Role | Service |
+|---------------------|---------|
+| `AWSServiceRoleForAmazonGuardDuty` | GuardDuty |
+| `AWSServiceRoleForConfig` | AWS Config |
+| `AWSServiceRoleForSecurityHub` | Security Hub |
+| `AWSServiceRoleForAccessAnalyzer` | IAM Access Analyzer |
+| `AWSServiceRoleForAmazonMacie` | Macie |
+| `AWSServiceRoleForInspector2` | Inspector |
+
+**Recommended Action:**
+- Document these as accepted false positives
+- Focus remediation on NON_COMPLIANT findings for user-created roles (not starting with `AWSServiceRole`)
+- Validate findings with: `aws iam get-role --role-name <role> --query 'Role.Path'`
+  - Service-linked roles have path: `/aws-service-role/<service>/`
+
+**For CMMC/Compliance Auditors:**
+- Service-linked roles are AWS-managed and out of customer control
+- CMMC framework recognizes AWS-managed resources as acceptable exceptions
+- Document the exception with proper justification
+
+### Verification Commands
+
+```bash
+# Verify SNS topic encryption
+aws sns get-topic-attributes \
+  --topic-arn arn:aws:sns:us-east-1:123456789012:config-topic \
+  --query 'Attributes.KmsMasterKeyId'
+
+# List service-linked roles
+aws iam list-roles --query 'Roles[?starts_with(RoleName, `AWSServiceRole`)].RoleName'
+
+# Check if role is service-linked
+aws iam get-role --role-name AWSServiceRoleForAmazonGuardDuty --query 'Role.Path'
 ```
 
 
@@ -191,7 +513,6 @@ atmos terraform plan aws-config-{each region} --stack {each region}-{each stage}
 | <a name="module_account_map"></a> [account\_map](#module\_account\_map) | cloudposse/stack-config/yaml//modules/remote-state | 1.8.0 |
 | <a name="module_aws_config"></a> [aws\_config](#module\_aws\_config) | cloudposse/config/aws | 1.5.3 |
 | <a name="module_aws_config_label"></a> [aws\_config\_label](#module\_aws\_config\_label) | cloudposse/label/null | 0.25.0 |
-| <a name="module_aws_team_roles"></a> [aws\_team\_roles](#module\_aws\_team\_roles) | cloudposse/stack-config/yaml//modules/remote-state | 1.8.0 |
 | <a name="module_config_bucket"></a> [config\_bucket](#module\_config\_bucket) | cloudposse/stack-config/yaml//modules/remote-state | 1.8.0 |
 | <a name="module_conformance_pack"></a> [conformance\_pack](#module\_conformance\_pack) | cloudposse/config/aws//modules/conformance-pack | 1.5.3 |
 | <a name="module_global_collector_region"></a> [global\_collector\_region](#module\_global\_collector\_region) | cloudposse/stack-config/yaml//modules/remote-state | 1.8.0 |
@@ -249,6 +570,7 @@ atmos terraform plan aws-config-{each region} --stack {each region}-{each stage}
 | <a name="input_regex_replace_chars"></a> [regex\_replace\_chars](#input\_regex\_replace\_chars) | Terraform regular expression (regex) string.<br/>Characters matching the regex will be removed from the ID elements.<br/>If not set, `"/[^a-zA-Z0-9-]/"` is used to remove all characters other than hyphens, letters and digits. | `string` | `null` | no |
 | <a name="input_region"></a> [region](#input\_region) | AWS Region | `string` | n/a | yes |
 | <a name="input_root_account_stage"></a> [root\_account\_stage](#input\_root\_account\_stage) | The stage name for the Organization root (master) account | `string` | `"root"` | no |
+| <a name="input_sns_encryption_key_id"></a> [sns\_encryption\_key\_id](#input\_sns\_encryption\_key\_id) | The ID of an AWS-managed customer master key (CMK) for Amazon SNS or a custom CMK.<br/><br/>Use "alias/aws/sns" for AWS managed key (recommended for compliance).<br/>Use a custom KMS key ARN or alias for organization-specific encryption requirements.<br/><br/>IMPORTANT: This is required for CMMC compliance (cmmc-2-v2-sns-encrypted-kms rule).<br/>The SNS topic created by AWS Config must be encrypted with KMS. | `string` | `"alias/aws/sns"` | no |
 | <a name="input_stage"></a> [stage](#input\_stage) | ID element. Usually used to indicate role, e.g. 'prod', 'staging', 'source', 'build', 'test', 'deploy', 'release' | `string` | `null` | no |
 | <a name="input_tags"></a> [tags](#input\_tags) | Additional tags (e.g. `{'BusinessUnit': 'XYZ'}`).<br/>Neither the tag keys nor the tag values will be modified by this module. | `map(string)` | `{}` | no |
 | <a name="input_team_roles_component_name"></a> [team\_roles\_component\_name](#input\_team\_roles\_component\_name) | The name of the team-roles component | `string` | `"aws-team-roles"` | no |
@@ -269,13 +591,25 @@ atmos terraform plan aws-config-{each region} --stack {each region}-{each stage}
 ## References
 
 
-- [AWS Config Documentation](https://docs.aws.amazon.com/config/index.html) - 
+- [AWS Config Documentation](https://docs.aws.amazon.com/config/index.html) - Official AWS Config documentation
 
-- [Cloud Posse's upstream component](https://github.com/cloudposse/terraform-aws-components/tree/main/modules/aws-config) - 
+- [CloudPosse terraform-aws-config Module](https://github.com/cloudposse/terraform-aws-config) - The underlying Terraform module used by this component
 
-- [Conformance Packs documentation](https://docs.aws.amazon.com/config/latest/developerguide/conformance-packs.html) - 
+- [Conformance Packs Documentation](https://docs.aws.amazon.com/config/latest/developerguide/conformance-packs.html) - AWS documentation for conformance packs
 
-- [AWS Managed Sample Conformance Packs](https://github.com/awslabs/aws-config-rules/tree/master/aws-config-conformance-packs) - 
+- [AWS Managed Sample Conformance Packs](https://github.com/awslabs/aws-config-rules/tree/master/aws-config-conformance-packs) - Pre-built conformance packs for CIS, HIPAA, NIST, PCI-DSS, and more
+
+- [AWS Config Managed Rules](https://docs.aws.amazon.com/config/latest/developerguide/managed-rules-by-aws-config.html) - List of all AWS managed Config rules
+
+- [AWS Service-Linked Roles](https://docs.aws.amazon.com/IAM/latest/UserGuide/using-service-linked-roles.html) - Understanding AWS service-linked roles and their inline policies
+
+- [Organization Conformance Packs](https://docs.aws.amazon.com/config/latest/developerguide/conformance-pack-organization-apis.html) - Deploying conformance packs across an AWS Organization
+
+- [Multi-Account Multi-Region Data Aggregation](https://docs.aws.amazon.com/config/latest/developerguide/aggregate-data.html) - Setting up AWS Config aggregators across accounts and regions
+
+- [CIS AWS Foundations Benchmark](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-cis-controls.html) - CIS benchmark controls for AWS
+
+- [CMMC Compliance on AWS](https://aws.amazon.com/compliance/cmmc/) - AWS resources for CMMC compliance
 
 
 

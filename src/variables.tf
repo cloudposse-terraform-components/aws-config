@@ -107,7 +107,7 @@ variable "conformance_packs" {
   type = list(object({
     name                = string
     conformance_pack    = string
-    parameter_overrides = map(string)
+    parameter_overrides = map(any)
     scope               = optional(string, null)
   }))
   default = []
@@ -122,12 +122,6 @@ variable "delegated_accounts" {
   description = "The account IDs of other accounts that will send their AWS Configuration or Security Hub data to this account"
   type        = set(string)
   default     = null
-}
-
-variable "iam_roles_environment_name" {
-  type        = string
-  description = "The name of the environment where the IAM roles are provisioned"
-  default     = "gbl"
 }
 
 variable "managed_rules" {
@@ -190,12 +184,6 @@ variable "config_bucket_component_name" {
   default     = "config-bucket"
 }
 
-variable "team_roles_component_name" {
-  type        = string
-  description = "The name of the team-roles component"
-  default     = "aws-team-roles"
-}
-
 variable "global_collector_component_name_pattern" {
   type        = string
   description = <<-EOT
@@ -210,4 +198,18 @@ variable "global_collector_component_name_pattern" {
     for regional AWS Config components.
   EOT
   default     = "%s-%s"
+}
+
+variable "sns_encryption_key_id" {
+  type        = string
+  description = <<-DOC
+    The ID of an AWS-managed customer master key (CMK) for Amazon SNS or a custom CMK.
+
+    Use "alias/aws/sns" for AWS managed key (recommended for compliance).
+    Use a custom KMS key ARN or alias for organization-specific encryption requirements.
+
+    IMPORTANT: This is required for CMMC compliance (cmmc-2-v2-sns-encrypted-kms rule).
+    The SNS topic created by AWS Config must be encrypted with KMS.
+  DOC
+  default     = "alias/aws/sns"
 }
