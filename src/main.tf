@@ -1,6 +1,8 @@
 locals {
-  enabled                            = module.this.enabled
-  account_map                        = module.account_map.outputs.full_account_map
+  enabled     = module.this.enabled
+  account_map = module.account_map.outputs.full_account_map
+
+  current_account_id = one(data.aws_caller_identity.this[*].account_id)
   s3_bucket                          = module.config_bucket.outputs
   is_global_collector_region         = join("", data.aws_region.this[*].name) == var.global_resource_collector_region
   create_iam_role                    = var.create_iam_role && local.is_global_collector_region

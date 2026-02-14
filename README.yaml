@@ -17,6 +17,8 @@ description: |-
   - **Configuration Storage**: Delivers configuration snapshots and history to a centralized S3 bucket (typically in the `audit` account)
   - **Organization-wide Conformance Packs**: Deploys organization conformance packs from the management account that automatically apply to all member accounts
   - **SNS Topic Encryption**: Creates encrypted SNS topics for AWS Config notifications (required for CMMC compliance)
+  - **Account Verification**: Optional safety check that validates Terraform is running in the correct AWS account
+  - **Flexible Account Map**: Supports both remote-state account-map lookups (default) and static account map variables
 
   ## New Features
 
