@@ -5,7 +5,7 @@ tags:
   - provider/aws
 ---
 
-# Component: `aws-config`
+# Component: `config`
 
 This component provisions AWS Config across all accounts in an AWS Organization. AWS Config is a service that enables
 you to assess, audit, and evaluate the configurations of your AWS resources. It continuously monitors and records
@@ -122,7 +122,7 @@ Before deploying this AWS Config component:
 
 1. **AWS Config Bucket**: The `aws-config-bucket` component must be provisioned first in the audit account:
    ```bash
-   atmos terraform apply aws-config-bucket -s core-ue1-audit
+   atmos terraform apply aws-config-bucket -s core-use1-audit
    ```
 
 2. **Support IAM Role** (CIS AWS Foundations 1.20): A designated support IAM role should be deployed to every account:
@@ -389,23 +389,23 @@ All member accounts can be deployed in parallel:
 
 ```bash
 # Core tenant accounts
-atmos terraform apply aws-config -s core-ue1-audit
-atmos terraform apply aws-config -s core-ue1-security
-atmos terraform apply aws-config -s core-ue1-network
-atmos terraform apply aws-config -s core-ue1-identity
-atmos terraform apply aws-config -s core-ue1-dns
-atmos terraform apply aws-config -s core-ue1-automation
+atmos terraform apply aws-config -s core-use1-audit
+atmos terraform apply aws-config -s core-use1-security
+atmos terraform apply aws-config -s core-use1-network
+atmos terraform apply aws-config -s core-use1-identity
+atmos terraform apply aws-config -s core-use1-dns
+atmos terraform apply aws-config -s core-use1-automation
 
 # Platform tenant accounts (if applicable)
-atmos terraform apply aws-config -s plat-ue1-dev
-atmos terraform apply aws-config -s plat-ue1-staging
-atmos terraform apply aws-config -s plat-ue1-prod
+atmos terraform apply aws-config -s plat-use1-dev
+atmos terraform apply aws-config -s plat-use1-staging
+atmos terraform apply aws-config -s plat-use1-prod
 ```
 
 #### Step 2: Deploy to Organization/Management Account (LAST)
 
 ```bash
-atmos terraform apply aws-config -s core-ue1-root
+atmos terraform apply aws-config -s core-use1-root
 ```
 
 ### Multi-Region Deployment
@@ -435,12 +435,12 @@ Follow the same order: member accounts first, then organization account.
 
 ```bash
 # Step 1: Member accounts in us-west-2
-atmos terraform apply aws-config -s core-uw2-audit
-atmos terraform apply aws-config -s core-uw2-security
+atmos terraform apply aws-config -s core-usw2-audit
+atmos terraform apply aws-config -s core-usw2-security
 # ... all other member accounts
 
 # Step 2: Organization account in us-west-2 (LAST)
-atmos terraform apply aws-config -s core-uw2-root
+atmos terraform apply aws-config -s core-usw2-root
 ```
 
 ## Known Issues and False Positives
