@@ -18,7 +18,7 @@ description: |-
   - **Organization-wide Conformance Packs**: Deploys organization conformance packs from the management account that automatically apply to all member accounts
   - **SNS Topic Encryption**: Creates encrypted SNS topics for AWS Config notifications (required for CMMC compliance)
   - **Account Verification**: Optional safety check that validates Terraform is running in the correct AWS account
-  - **Flexible Account Map**: Supports both remote-state account-map lookups (default) and static account map variables
+  - **Flexible Account Map**: Supports both remote-state account-map lookups and static account map variables (default)
 
   ## New Features
 
