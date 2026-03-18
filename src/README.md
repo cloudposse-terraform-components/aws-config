@@ -21,6 +21,8 @@ This component is responsible for:
 - **Configuration Storage**: Delivers configuration snapshots and history to a centralized S3 bucket (typically in the `audit` account)
 - **Organization-wide Conformance Packs**: Deploys organization conformance packs from the management account that automatically apply to all member accounts
 - **SNS Topic Encryption**: Creates encrypted SNS topics for AWS Config notifications (required for CMMC compliance)
+- **Account Verification**: Optional safety check that validates Terraform is running in the correct AWS account
+- **Flexible Account Map**: Supports both remote-state account-map lookups and static account map variables (default)
 
 ## New Features
 
@@ -120,7 +122,7 @@ Before deploying this AWS Config component:
 
 1. **AWS Config Bucket**: The `aws-config-bucket` component must be provisioned first in the audit account:
    ```bash
-   atmos terraform apply aws-config-bucket -s core-ue1-audit
+   atmos terraform apply aws-config-bucket -s core-use1-audit
    ```
 
 2. **Support IAM Role** (CIS AWS Foundations 1.20): A designated support IAM role should be deployed to every account:
@@ -387,23 +389,23 @@ All member accounts can be deployed in parallel:
 
 ```bash
 # Core tenant accounts
-atmos terraform apply aws-config -s core-ue1-audit
-atmos terraform apply aws-config -s core-ue1-security
-atmos terraform apply aws-config -s core-ue1-network
-atmos terraform apply aws-config -s core-ue1-identity
-atmos terraform apply aws-config -s core-ue1-dns
-atmos terraform apply aws-config -s core-ue1-automation
+atmos terraform apply aws-config -s core-use1-audit
+atmos terraform apply aws-config -s core-use1-security
+atmos terraform apply aws-config -s core-use1-network
+atmos terraform apply aws-config -s core-use1-identity
+atmos terraform apply aws-config -s core-use1-dns
+atmos terraform apply aws-config -s core-use1-automation
 
 # Platform tenant accounts (if applicable)
-atmos terraform apply aws-config -s plat-ue1-dev
-atmos terraform apply aws-config -s plat-ue1-staging
-atmos terraform apply aws-config -s plat-ue1-prod
+atmos terraform apply aws-config -s plat-use1-dev
+atmos terraform apply aws-config -s plat-use1-staging
+atmos terraform apply aws-config -s plat-use1-prod
 ```
 
 #### Step 2: Deploy to Organization/Management Account (LAST)
 
 ```bash
-atmos terraform apply aws-config -s core-ue1-root
+atmos terraform apply aws-config -s core-use1-root
 ```
 
 ### Multi-Region Deployment
@@ -433,12 +435,12 @@ Follow the same order: member accounts first, then organization account.
 
 ```bash
 # Step 1: Member accounts in us-west-2
-atmos terraform apply aws-config -s core-uw2-audit
-atmos terraform apply aws-config -s core-uw2-security
+atmos terraform apply aws-config -s core-usw2-audit
+atmos terraform apply aws-config -s core-usw2-security
 # ... all other member accounts
 
 # Step 2: Organization account in us-west-2 (LAST)
-atmos terraform apply aws-config -s core-uw2-root
+atmos terraform apply aws-config -s core-usw2-root
 ```
 
 ## Known Issues and False Positives
@@ -496,15 +498,16 @@ aws iam get-role --role-name AWSServiceRoleForAmazonGuardDuty --query 'Role.Path
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.0.0 |
-| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 4.0, < 6.0.0 |
-| <a name="requirement_awsutils"></a> [awsutils](#requirement\_awsutils) | >= 0.16.0, < 6.0.0 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.4.0 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | >= 4.0.0 |
+| <a name="requirement_awsutils"></a> [awsutils](#requirement\_awsutils) | >= 0.16.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 4.0, < 6.0.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | >= 4.0.0 |
+| <a name="provider_terraform"></a> [terraform](#provider\_terraform) | n/a |
 
 ## Modules
 
@@ -516,7 +519,6 @@ aws iam get-role --role-name AWSServiceRoleForAmazonGuardDuty --query 'Role.Path
 | <a name="module_config_bucket"></a> [config\_bucket](#module\_config\_bucket) | cloudposse/stack-config/yaml//modules/remote-state | 1.8.0 |
 | <a name="module_conformance_pack"></a> [conformance\_pack](#module\_conformance\_pack) | cloudposse/config/aws//modules/conformance-pack | 1.5.3 |
 | <a name="module_global_collector_region"></a> [global\_collector\_region](#module\_global\_collector\_region) | cloudposse/stack-config/yaml//modules/remote-state | 1.8.0 |
-| <a name="module_iam_roles"></a> [iam\_roles](#module\_iam\_roles) | ../account-map/modules/iam-roles | n/a |
 | <a name="module_org_conformance_pack"></a> [org\_conformance\_pack](#module\_org\_conformance\_pack) | ./modules/org-conformance-pack | n/a |
 | <a name="module_this"></a> [this](#module\_this) | cloudposse/label/null | 0.25.0 |
 | <a name="module_utils"></a> [utils](#module\_utils) | cloudposse/utils/aws | 1.4.0 |
@@ -525,6 +527,7 @@ aws iam get-role --role-name AWSServiceRoleForAmazonGuardDuty --query 'Role.Path
 
 | Name | Type |
 |------|------|
+| [terraform_data.account_verification](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) | resource |
 | [aws_caller_identity.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
 | [aws_partition.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/partition) | data source |
 | [aws_region.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) | data source |
@@ -533,8 +536,11 @@ aws iam get-role --role-name AWSServiceRoleForAmazonGuardDuty --query 'Role.Path
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
+| <a name="input_account_map"></a> [account\_map](#input\_account\_map) | Static account map configuration. Only used when `account_map_enabled` is `false`.<br/>Map keys use `tenant-stage` format (e.g., `core-security`, `core-audit`, `plat-prod`). | <pre>object({<br/>    full_account_map              = map(string)<br/>    audit_account_account_name    = optional(string, "")<br/>    root_account_account_name     = optional(string, "")<br/>    identity_account_account_name = optional(string, "")<br/>    aws_partition                 = optional(string, "aws")<br/>    iam_role_arn_templates        = optional(map(string), {})<br/>  })</pre> | <pre>{<br/>  "audit_account_account_name": "",<br/>  "aws_partition": "aws",<br/>  "full_account_map": {},<br/>  "iam_role_arn_templates": {},<br/>  "identity_account_account_name": "",<br/>  "root_account_account_name": ""<br/>}</pre> | no |
 | <a name="input_account_map_component_name"></a> [account\_map\_component\_name](#input\_account\_map\_component\_name) | The name of the account-map component | `string` | `"account-map"` | no |
-| <a name="input_account_map_tenant"></a> [account\_map\_tenant](#input\_account\_map\_tenant) | (Optional) The tenant where the account\_map component required by remote-state is deployed. | `string` | `""` | no |
+| <a name="input_account_map_enabled"></a> [account\_map\_enabled](#input\_account\_map\_enabled) | Enable the account map component. When true, the component fetches account mappings from the<br/>`account-map` component via remote state. When false (default), the component uses the static `account_map` variable instead. | `bool` | `false` | no |
+| <a name="input_account_map_tenant"></a> [account\_map\_tenant](#input\_account\_map\_tenant) | The tenant where the `account_map` component required by remote-state is deployed | `string` | `"core"` | no |
+| <a name="input_account_verification_enabled"></a> [account\_verification\_enabled](#input\_account\_verification\_enabled) | Enable account verification. When true (default), the component verifies that Terraform is executing<br/>in the correct AWS account by comparing the current account ID against the expected account from the<br/>account\_map based on the component's tenant-stage context. | `bool` | `true` | no |
 | <a name="input_additional_tag_map"></a> [additional\_tag\_map](#input\_additional\_tag\_map) | Additional key-value pairs to add to each map in `tags_as_list_of_maps`. Not added to `tags` or `id`.<br/>This is for some rare cases where resources want additional configuration of tags<br/>and therefore take a list of maps with tag key, value, and additional configuration. | `map(string)` | `{}` | no |
 | <a name="input_attributes"></a> [attributes](#input\_attributes) | ID element. Additional attributes (e.g. `workers` or `cluster`) to add to `id`,<br/>in the order they appear in the list. New attributes are appended to the<br/>end of the list. The elements of the list are joined by the `delimiter`<br/>and treated as a single ID element. | `list(string)` | `[]` | no |
 | <a name="input_az_abbreviation_type"></a> [az\_abbreviation\_type](#input\_az\_abbreviation\_type) | AZ abbreviation type, `fixed` or `short` | `string` | `"fixed"` | no |

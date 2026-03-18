@@ -60,6 +60,12 @@ components:
 
 
 
+
+
+
+
+
+
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 <!-- markdownlint-disable -->
 ## Requirements
@@ -122,4 +128,10 @@ components:
 | <a name="output_arn"></a> [arn](#output\_arn) | ARN for the AWS Config Organization Conformance Pack |
 <!-- markdownlint-restore -->
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+
+
+
+
+
+
 
