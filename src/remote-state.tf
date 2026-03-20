@@ -1,6 +1,6 @@
 module "account_map" {
   source  = "cloudposse/stack-config/yaml//modules/remote-state"
-  version = "1.8.0"
+  version = "2.0.0"
 
   component   = var.account_map_component_name
   tenant      = var.account_map_enabled ? coalesce(var.account_map_tenant, module.this.tenant) : null
@@ -16,7 +16,7 @@ module "account_map" {
 
 module "config_bucket" {
   source  = "cloudposse/stack-config/yaml//modules/remote-state"
-  version = "1.8.0"
+  version = "2.0.0"
 
   component   = var.config_bucket_component_name
   tenant      = (var.config_bucket_tenant != "") ? var.config_bucket_tenant : module.this.tenant
@@ -29,7 +29,7 @@ module "config_bucket" {
 
 module "global_collector_region" {
   source  = "cloudposse/stack-config/yaml//modules/remote-state"
-  version = "1.8.0"
+  version = "2.0.0"
 
   count = !local.enabled || local.is_global_collector_region ? 0 : 1
 
