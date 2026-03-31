@@ -238,8 +238,26 @@ variable "global_collector_component_name_pattern" {
 
     Adjust this pattern if your environment uses a different naming convention
     for regional AWS Config components.
+
+    NOTE: This is only used when `global_collector_component_name` is not set.
   EOT
   default     = "%s-%s"
+}
+
+variable "global_collector_component_name" {
+  type        = string
+  description = <<-EOT
+    Explicit component name for the global collector region remote state lookup.
+    When set, this takes precedence over the pattern-based name construction.
+
+    Use this when your aws-config component uses the same name across all regions
+    (e.g., "aws-config" everywhere), which is the recommended approach. The region
+    differentiation is handled by the stack's environment, not the component name.
+
+    Example: If your stacks are named "core-euw1-security", "core-use1-security",
+    and the component is always "aws-config", set this to "aws-config".
+  EOT
+  default     = null
 }
 
 variable "sns_encryption_key_id" {
