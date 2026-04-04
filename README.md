@@ -272,6 +272,7 @@ components:
         config_bucket_env: ue1
         config_bucket_stage: audit
         sns_encryption_key_id: "alias/aws/sns"
+        global_collector_component_name: "aws-config"
         conformance_packs: []
 ```
 
