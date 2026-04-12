@@ -242,6 +242,43 @@ variable "global_collector_component_name_pattern" {
   default     = "%s-%s"
 }
 
+variable "recording_mode" {
+  description = <<-DOC
+    The mode for AWS Config to record configuration changes.
+
+    recording_frequency:
+      The default frequency with which AWS Config records configuration changes (CONTINUOUS or DAILY).
+    recording_mode_override:
+      Override the recording frequency for specific resource types.
+
+    Use DAILY recording for high-churn or ephemeral resource types to reduce costs.
+    Resources created and destroyed within a 24-hour period generate zero CIs under DAILY.
+
+    See: https://docs.aws.amazon.com/config/latest/developerguide/select-resources-recording-frequency.html
+
+    Example:
+    ```
+    recording_mode = {
+      recording_frequency = "CONTINUOUS"
+      recording_mode_override = {
+        description         = "Record high-churn resource types daily instead of continuously"
+        recording_frequency = "DAILY"
+        resource_types      = ["AWS::EC2::Instance", "AWS::EC2::EC2Fleet", "AWS::EC2::LaunchTemplate"]
+      }
+    }
+    ```
+  DOC
+  type = object({
+    recording_frequency = string
+    recording_mode_override = optional(object({
+      description         = string
+      recording_frequency = string
+      resource_types      = list(string)
+    }))
+  })
+  default = null
+}
+
 variable "sns_encryption_key_id" {
   type        = string
   description = <<-DOC
