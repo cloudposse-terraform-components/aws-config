@@ -96,6 +96,7 @@ module "aws_config" {
   global_resource_collector_region   = var.global_resource_collector_region
   central_resource_collector_account = local.central_resource_collector_account
   child_resource_collector_accounts  = local.delegated_accounts
+  recording_mode                     = var.recording_mode
 
   context = module.this.context
 }
