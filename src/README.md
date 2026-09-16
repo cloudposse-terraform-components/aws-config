@@ -204,6 +204,8 @@ The `default_scope` variable controls how conformance packs are deployed:
 | `create_iam_role` | Set to `true` - component auto-detects global collector region | `true` |
 | `config_bucket_*` | References the S3 bucket in audit account | See example below |
 | `sns_encryption_key_id` | KMS key for SNS topic encryption (CMMC compliance) | `alias/aws/sns` |
+| `allowed_aws_services_for_sns_published` | Service principals granted `sns:Publish` on the Config SNS topic (set `["config.amazonaws.com"]` when using the service-linked role) | `[]` |
+| `allowed_iam_arns_for_sns_publish` | IAM role/user ARNs granted `sns:Publish` on the Config SNS topic | `[]` |
 
 ### Catalog Configuration
 
@@ -373,6 +375,21 @@ sns_encryption_key_id: "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-123
 ```
 
 ## Deployment
+Note also that AWS states "AWS Config does not support encrypted Amazon SNS topics"
+([Permissions for the Amazon SNS Topic](https://docs.aws.amazon.com/config/latest/developerguide/sns-topic-policy.html)).
+If notifications fail on an encrypted topic, set `sns_encryption_key_id: ""` to
+create the topic unencrypted, as Control Tower does for its own Config topic.
+allowed_aws_services_for_sns_published: ["config.amazonaws.com"]
+The module puts the SNS topic on the AWS default topic policy, which grants
+account principals only. That is enough when the recorder runs on the
+customer-managed IAM role created by this component (`create_iam_role: true`),
+because that role holds `sns:Publish`. It is **not** enough when the recorder
+runs on the AWS Config service-linked role: the service-linked role has no
+`sns:Publish` permission, so AWS Config publishes as the `config.amazonaws.com`
+service principal and the delivery channel reports
+`AuthorizationError: An exception occurred while trying to publish to your Amazon SNS topic`
+while S3 delivery continues to succeed. Grant the service principal explicitly:
+#### Service-linked role and the SNS topic
 
 ### Provisioning Order
 
@@ -495,6 +512,7 @@ aws iam get-role --role-name AWSServiceRoleForAmazonGuardDuty --query 'Role.Path
 
 <!-- markdownlint-disable -->
 ## Requirements
+|----|-------|
 
 | Name | Version |
 |------|---------|
@@ -503,6 +521,7 @@ aws iam get-role --role-name AWSServiceRoleForAmazonGuardDuty --query 'Role.Path
 | <a name="requirement_awsutils"></a> [awsutils](#requirement\_awsutils) | >= 0.16.0 |
 
 ## Providers
+|----|-------|
 
 | Name | Version |
 |------|---------|
@@ -512,6 +531,7 @@ aws iam get-role --role-name AWSServiceRoleForAmazonGuardDuty --query 'Role.Path
 ## Modules
 
 | Name | Source | Version |
+|----|------|-------|
 |------|--------|---------|
 | <a name="module_account_map"></a> [account\_map](#module\_account\_map) | cloudposse/stack-config/yaml//modules/remote-state | 1.8.0 |
 | <a name="module_aws_config"></a> [aws\_config](#module\_aws\_config) | cloudposse/config/aws | 1.5.3 |
@@ -526,6 +546,7 @@ aws iam get-role --role-name AWSServiceRoleForAmazonGuardDuty --query 'Role.Path
 ## Resources
 
 | Name | Type |
+|----|----|
 |------|------|
 | [terraform_data.account_verification](https://registry.terraform.io/providers/hashicorp/terraform/latest/docs/resources/data) | resource |
 | [aws_caller_identity.this](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) | data source |
@@ -535,6 +556,7 @@ aws iam get-role --role-name AWSServiceRoleForAmazonGuardDuty --query 'Role.Path
 ## Inputs
 
 | Name | Description | Type | Default | Required |
+|----|-----------|----|-------|:------:|
 |------|-------------|------|---------|:--------:|
 | <a name="input_account_map"></a> [account\_map](#input\_account\_map) | Static account map configuration. Only used when `account_map_enabled` is `false`.<br/>Map keys use `tenant-stage` format (e.g., `core-security`, `core-audit`, `plat-prod`). | <pre>object({<br/>    full_account_map              = map(string)<br/>    audit_account_account_name    = optional(string, "")<br/>    root_account_account_name     = optional(string, "")<br/>    identity_account_account_name = optional(string, "")<br/>    aws_partition                 = optional(string, "aws")<br/>    iam_role_arn_templates        = optional(map(string), {})<br/>  })</pre> | <pre>{<br/>  "audit_account_account_name": "",<br/>  "aws_partition": "aws",<br/>  "full_account_map": {},<br/>  "iam_role_arn_templates": {},<br/>  "identity_account_account_name": "",<br/>  "root_account_account_name": ""<br/>}</pre> | no |
 | <a name="input_account_map_component_name"></a> [account\_map\_component\_name](#input\_account\_map\_component\_name) | The name of the account-map component | `string` | `"account-map"` | no |
@@ -542,6 +564,8 @@ aws iam get-role --role-name AWSServiceRoleForAmazonGuardDuty --query 'Role.Path
 | <a name="input_account_map_tenant"></a> [account\_map\_tenant](#input\_account\_map\_tenant) | The tenant where the `account_map` component required by remote-state is deployed | `string` | `"core"` | no |
 | <a name="input_account_verification_enabled"></a> [account\_verification\_enabled](#input\_account\_verification\_enabled) | Enable account verification. When true (default), the component verifies that Terraform is executing<br/>in the correct AWS account by comparing the current account ID against the expected account from the<br/>account\_map based on the component's tenant-stage context. | `bool` | `true` | no |
 | <a name="input_additional_tag_map"></a> [additional\_tag\_map](#input\_additional\_tag\_map) | Additional key-value pairs to add to each map in `tags_as_list_of_maps`. Not added to `tags` or `id`.<br/>This is for some rare cases where resources want additional configuration of tags<br/>and therefore take a list of maps with tag key, value, and additional configuration. | `map(string)` | `{}` | no |
+| <a name="input_allowed_aws_services_for_sns_published"></a> [allowed\_aws\_services\_for\_sns\_published](#input\_allowed\_aws\_services\_for\_sns\_published) | AWS service principals granted `sns:Publish` on the AWS Config SNS topic.<br/>Passed through to `cloudposse/config/aws`.<br/><br/>Required when the configuration recorder runs on the AWS Config<br/>service-linked role (`create_iam_role = false` with no customer-managed role):<br/>the service-linked role has no `sns:Publish` permission, so AWS Config<br/>publishes as the `config.amazonaws.com` service principal, which the default<br/>topic policy does not allow. Set to `["config.amazonaws.com"]` in that case.<br/>See https://docs.aws.amazon.com/config/latest/developerguide/sns-topic-policy.html | `list(string)` | `[]` | no |
+| <a name="input_allowed_iam_arns_for_sns_publish"></a> [allowed\_iam\_arns\_for\_sns\_publish](#input\_allowed\_iam\_arns\_for\_sns\_publish) | IAM role/user ARNs granted `sns:Publish` on the AWS Config SNS topic.<br/>Passed through to `cloudposse/config/aws`. | `list(string)` | `[]` | no |
 | <a name="input_attributes"></a> [attributes](#input\_attributes) | ID element. Additional attributes (e.g. `workers` or `cluster`) to add to `id`,<br/>in the order they appear in the list. New attributes are appended to the<br/>end of the list. The elements of the list are joined by the `delimiter`<br/>and treated as a single ID element. | `list(string)` | `[]` | no |
 | <a name="input_az_abbreviation_type"></a> [az\_abbreviation\_type](#input\_az\_abbreviation\_type) | AZ abbreviation type, `fixed` or `short` | `string` | `"fixed"` | no |
 | <a name="input_central_resource_collector_account"></a> [central\_resource\_collector\_account](#input\_central\_resource\_collector\_account) | The name of the account that is the centralized aggregation account. | `string` | n/a | yes |
@@ -572,6 +596,7 @@ aws iam get-role --role-name AWSServiceRoleForAmazonGuardDuty --query 'Role.Path
 | <a name="input_name"></a> [name](#input\_name) | ID element. Usually the component or solution name, e.g. 'app' or 'jenkins'.<br/>This is the only ID element not also included as a `tag`.<br/>The "name" tag is set to the full `id` string. There is no tag with the value of the `name` input. | `string` | `null` | no |
 | <a name="input_namespace"></a> [namespace](#input\_namespace) | ID element. Usually an abbreviation of your organization name, e.g. 'eg' or 'cp', to help ensure generated IDs are globally unique | `string` | `null` | no |
 | <a name="input_privileged"></a> [privileged](#input\_privileged) | True if the default provider already has access to the backend | `bool` | `false` | no |
+| <a name="input_recording_mode"></a> [recording\_mode](#input\_recording\_mode) | The mode for AWS Config to record configuration changes.<br/><br/>recording\_frequency:<br/>  The default frequency with which AWS Config records configuration changes (CONTINUOUS or DAILY).<br/>recording\_mode\_override:<br/>  Override the recording frequency for specific resource types.<br/><br/>Use DAILY recording for high-churn or ephemeral resource types to reduce costs.<br/>Resources created and destroyed within a 24-hour period generate zero CIs under DAILY.<br/><br/>See: https://docs.aws.amazon.com/config/latest/developerguide/select-resources-recording-frequency.html<br/><br/>Example:<pre>recording_mode = {<br/>  recording_frequency = "CONTINUOUS"<br/>  recording_mode_override = {<br/>    description         = "Record high-churn resource types daily instead of continuously"<br/>    recording_frequency = "DAILY"<br/>    resource_types      = ["AWS::EC2::Instance", "AWS::EC2::EC2Fleet", "AWS::EC2::LaunchTemplate"]<br/>  }<br/>}</pre> | <pre>object({<br/>    recording_frequency = string<br/>    recording_mode_override = optional(object({<br/>      description         = string<br/>      recording_frequency = string<br/>      resource_types      = list(string)<br/>    }))<br/>  })</pre> | `null` | no |
 | <a name="input_regex_replace_chars"></a> [regex\_replace\_chars](#input\_regex\_replace\_chars) | Terraform regular expression (regex) string.<br/>Characters matching the regex will be removed from the ID elements.<br/>If not set, `"/[^a-zA-Z0-9-]/"` is used to remove all characters other than hyphens, letters and digits. | `string` | `null` | no |
 | <a name="input_region"></a> [region](#input\_region) | AWS Region | `string` | n/a | yes |
 | <a name="input_root_account_stage"></a> [root\_account\_stage](#input\_root\_account\_stage) | The stage name for the Organization root (master) account | `string` | `"root"` | no |
@@ -583,6 +608,7 @@ aws iam get-role --role-name AWSServiceRoleForAmazonGuardDuty --query 'Role.Path
 ## Outputs
 
 | Name | Description |
+|----|-----------|
 |------|-------------|
 | <a name="output_aws_config_configuration_recorder_id"></a> [aws\_config\_configuration\_recorder\_id](#output\_aws\_config\_configuration\_recorder\_id) | The ID of the AWS Config Recorder |
 | <a name="output_aws_config_iam_role"></a> [aws\_config\_iam\_role](#output\_aws\_config\_iam\_role) | The ARN of the IAM Role used for AWS Config |

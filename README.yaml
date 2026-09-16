@@ -199,6 +199,8 @@ usage: |-
   | `create_iam_role` | Set to `true` - component auto-detects global collector region | `true` |
   | `config_bucket_*` | References the S3 bucket in audit account | See example below |
   | `sns_encryption_key_id` | KMS key for SNS topic encryption (CMMC compliance) | `alias/aws/sns` |
+  | `allowed_aws_services_for_sns_published` | Service principals granted `sns:Publish` on the Config SNS topic (set `["config.amazonaws.com"]` when using the service-linked role) | `[]` |
+  | `allowed_iam_arns_for_sns_publish` | IAM role/user ARNs granted `sns:Publish` on the Config SNS topic | `[]` |
 
   ### Catalog Configuration
 
@@ -368,6 +370,27 @@ usage: |-
   ```
 
   ## Deployment
+
+  #### Service-linked role and the SNS topic
+
+  The module puts the SNS topic on the AWS default topic policy, which grants
+  account principals only. That is enough when the recorder runs on the
+  customer-managed IAM role created by this component (`create_iam_role: true`),
+  because that role holds `sns:Publish`. It is **not** enough when the recorder
+  runs on the AWS Config service-linked role: the service-linked role has no
+  `sns:Publish` permission, so AWS Config publishes as the `config.amazonaws.com`
+  service principal and the delivery channel reports
+  `AuthorizationError: An exception occurred while trying to publish to your Amazon SNS topic`
+  while S3 delivery continues to succeed. Grant the service principal explicitly:
+
+  ```yaml
+  allowed_aws_services_for_sns_published: ["config.amazonaws.com"]
+  ```
+
+  Note also that AWS states "AWS Config does not support encrypted Amazon SNS topics"
+  ([Permissions for the Amazon SNS Topic](https://docs.aws.amazon.com/config/latest/developerguide/sns-topic-policy.html)).
+  If notifications fail on an encrypted topic, set `sns_encryption_key_id: ""` to
+  create the topic unencrypted, as Control Tower does for its own Config topic.
 
   ### Provisioning Order
 

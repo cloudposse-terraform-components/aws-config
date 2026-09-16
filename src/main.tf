@@ -93,6 +93,9 @@ module "aws_config" {
   create_sns_topic      = true
   sns_encryption_key_id = var.sns_encryption_key_id
 
+  allowed_aws_services_for_sns_published = var.allowed_aws_services_for_sns_published
+  allowed_iam_arns_for_sns_publish       = var.allowed_iam_arns_for_sns_publish
+
   global_resource_collector_region   = var.global_resource_collector_region
   central_resource_collector_account = local.central_resource_collector_account
   child_resource_collector_accounts  = local.delegated_accounts

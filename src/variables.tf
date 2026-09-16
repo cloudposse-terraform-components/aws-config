@@ -292,3 +292,28 @@ variable "sns_encryption_key_id" {
   DOC
   default     = "alias/aws/sns"
 }
+
+variable "allowed_aws_services_for_sns_published" {
+  type        = list(string)
+  description = <<-DOC
+    AWS service principals granted `sns:Publish` on the AWS Config SNS topic.
+    Passed through to `cloudposse/config/aws`.
+
+    Required when the configuration recorder runs on the AWS Config
+    service-linked role (`create_iam_role = false` with no customer-managed role):
+    the service-linked role has no `sns:Publish` permission, so AWS Config
+    publishes as the `config.amazonaws.com` service principal, which the default
+    topic policy does not allow. Set to `["config.amazonaws.com"]` in that case.
+    See https://docs.aws.amazon.com/config/latest/developerguide/sns-topic-policy.html
+  DOC
+  default     = []
+}
+
+variable "allowed_iam_arns_for_sns_publish" {
+  type        = list(string)
+  description = <<-DOC
+    IAM role/user ARNs granted `sns:Publish` on the AWS Config SNS topic.
+    Passed through to `cloudposse/config/aws`.
+  DOC
+  default     = []
+}
